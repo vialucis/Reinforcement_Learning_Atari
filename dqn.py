@@ -114,14 +114,14 @@ def optimize(dqn, target_dqn, memory, optimizer):
     #       pair (s,a). Here, torch.gather() is useful for selecting the Q-values
     #       corresponding to the chosen actions.
 
-    state_action_values = dqn.forward(state_batch).gather(1, action_batch)
+    q_values = dqn.forward(state_batch).gather(1, action_batch)
 
     # TODO: Compute the Q-value targets. Only do this for non-terminal transitions!
 
-    q_values = torch.zeros(dqn.batch_size, device=device)
-    q_values[non_final_mask] = target_dqn.forward(non_final_next_states).max(1)[0].detach()
+    next_state_values = torch.zeros(dqn.batch_size, device=device)
+    next_state_values[non_final_mask] = target_dqn.forward(non_final_next_states).max(1)[0].detach()
     # Compute the expected Q values
-    q_value_targets = (q_values * dqn.gamma) + reward_batch
+    q_value_targets = (next_state_values * dqn.gamma) + reward_batch
 
     # Compute loss.
     loss = F.mse_loss(q_values.squeeze(), q_value_targets)
