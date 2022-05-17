@@ -48,7 +48,6 @@ if __name__ == '__main__':
         done = False
 
         obs = preprocess(env.reset(), env=args.env).unsqueeze(0)
-
         while not done:
             # TODO: Get action from DQN.
             action = dqn.act(obs)
@@ -56,7 +55,7 @@ if __name__ == '__main__':
             # Act in the true environment.
             obs_old = obs
             obs, reward, done, info = env.step(action.item())
-            print(done, info)
+            #print(done, info)
 
             # Preprocess incoming observation.
             if not done:
@@ -64,7 +63,7 @@ if __name__ == '__main__':
             
             # TODO: Add the transition to the replay memory. Remember to convert
             #       everything to PyTorch tensors!
-            memory.push(obs_old, action, obs, reward)
+            memory.push(torch.tensor(obs_old), torch.tensor(action), torch.tensor(obs), torch.tensor(reward))
 
             # TODO: Run DQN.optimize() every env_config["train_frequency"] steps.
             if episode % env_config["train_frequency"] == 0:

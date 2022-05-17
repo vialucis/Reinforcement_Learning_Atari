@@ -38,7 +38,7 @@ def evaluate_policy(dqn, env, env_config, args, n_episodes, render=False, verbos
             if render:
                 env.render()
 
-            action = dqn.act(obs_stack, exploit=True).item()
+            action = dqn.act(obs, exploit=True).item()
 
             obs, reward, done, info = env.step(action)
             obs = preprocess(obs, env=args.env).unsqueeze(0)
@@ -55,7 +55,7 @@ def evaluate_policy(dqn, env, env_config, args, n_episodes, render=False, verbos
 
 if __name__ == '__main__':
     args = parser.parse_args()
-
+    print(args)
     # Initialize environment and config
     env = gym.make(args.env)
     env_config = ENV_CONFIGS[args.env]

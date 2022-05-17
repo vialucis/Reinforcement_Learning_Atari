@@ -98,28 +98,29 @@ def optimize(dqn, target_dqn, memory, optimizer):
 
     Transition = namedtuple('Transition',
                             ('obs', 'action', 'next_obs', 'reward'))
-
-    batch = Transition(*zip(*transitions))
+    batch = Transition(*transitions)
+    
 
     non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
                                             batch.next_obs)), device=device, dtype=torch.bool)
-
-    non_final_next_states = torch.cat([s for s in batch.next_obs
-                                       if s is not None])
+    var = [s for s in batch.next_obs if s is not None]
+    for idx, s in enumerate(var):
+        if (var[idx].shape != torch.Size([1,4])):
+           var[idx] = torch.reshape(var[idx],(1,4))
+    non_final_next_states = torch.cat(var)
     state_batch = torch.cat(batch.obs)
     action_batch = torch.cat(batch.action)
-    reward_batch = torch.cat(batch.reward)
+    reward_batch = torch.stack(batch.reward)
 
     # TODO: Compute the current estimates of the Q-values for each state-action
     #       pair (s,a). Here, torch.gather() is useful for selecting the Q-values
     #       corresponding to the chosen actions.
-
-    q_values = dqn.forward(state_batch).gather(1, action_batch)
+    q_values = dqn.forward(state_batch).gather(1, action_batch.unsqueeze(1))
 
     # TODO: Compute the Q-value targets. Only do this for non-terminal transitions!
 
     next_state_values = torch.zeros(dqn.batch_size, device=device)
-    next_state_values[non_final_mask] = target_dqn.forward(non_final_next_states).max(1)[0].detach()
+    next_state_values[non_final_mask] = target_dqn.forward(non_final_next_states.float()).max(1)[0].detach()
     # Compute the expected Q values
     q_value_targets = (next_state_values * dqn.gamma) + reward_batch
 
