@@ -1,15 +1,17 @@
 import random
-
+import numpy
 import gym
+import random
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math
 from collections import namedtuple
+import math
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+# Store Transitions
 class ReplayMemory:
     def __init__(self, capacity):
         self.capacity = capacity
@@ -35,6 +37,9 @@ class ReplayMemory:
         return tuple(zip(*sample))
 
 
+steps_done = 0
+
+
 class DQN(nn.Module):
     def __init__(self, env_config):
         super(DQN, self).__init__()
@@ -46,6 +51,7 @@ class DQN(nn.Module):
         self.eps_end = env_config["eps_end"]
         self.anneal_length = env_config["anneal_length"]
         self.n_actions = env_config["n_actions"]
+        self.steps_done = 0
 
         self.fc1 = nn.Linear(4, 256)
         self.fc2 = nn.Linear(256, self.n_actions)
@@ -67,18 +73,17 @@ class DQN(nn.Module):
         #       For example, if the state dimension is 4 and the batch size is 32,
         #       the input would be a [32, 4] tensor and the output a [32, 1] tensor.
         # TODO: Implement epsilon-greedy exploration.
-
+        global steps_done
         action = []
+        eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(-1. * steps_done / 200)
+        steps_done += 1
+
         for state in observation:
-            if random.random() <= self.eps_start:
+            if random.random() <= eps_threshold:
                 action_index = random.randrange(0, self.n_actions)
                 action.append(action_index)
             else:
-                action.append(torch.argmax(self.forward(state)).item())
-
-        if self.eps_start > self.eps_end:
-            self.eps_start *= 0.99975
-            self.eps_start = max(self.eps_end, self.eps_start)
+                action.append(self.forward(state).max(0)[1].item())
 
         return torch.tensor(action)
 
@@ -95,35 +100,29 @@ def optimize(dqn, target_dqn, memory, optimizer):
     #       Note that special care is needed for terminal transitions!
 
     transitions = memory.sample(dqn.batch_size)
-
     Transition = namedtuple('Transition',
                             ('obs', 'action', 'next_obs', 'reward'))
     batch = Transition(*transitions)
-    
-
-    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
+    # print(batch.next_obs)
+    non_final_mask = torch.tensor(tuple(map(lambda s: not isinstance(s, numpy.ndarray),
                                             batch.next_obs)), device=device, dtype=torch.bool)
-    var = [s for s in batch.next_obs if s is not None]
-    for idx, s in enumerate(var):
-        if (var[idx].shape != torch.Size([1,4])):
-           var[idx] = torch.reshape(var[idx],(1,4))
-    non_final_next_states = torch.cat(var)
+
+    non_final_next_states = torch.cat([s for s in batch.next_obs if not isinstance(s, numpy.ndarray)])
     state_batch = torch.cat(batch.obs)
     action_batch = torch.cat(batch.action)
-    reward_batch = torch.stack(batch.reward)
+    reward_batch = torch.cat(batch.reward)
 
     # TODO: Compute the current estimates of the Q-values for each state-action
     #       pair (s,a). Here, torch.gather() is useful for selecting the Q-values
     #       corresponding to the chosen actions.
-    q_values = dqn.forward(state_batch).gather(1, action_batch.unsqueeze(1))
+    q_values = dqn(state_batch).gather(1, action_batch.unsqueeze(1))
 
     # TODO: Compute the Q-value targets. Only do this for non-terminal transitions!
 
     next_state_values = torch.zeros(dqn.batch_size, device=device)
-    next_state_values[non_final_mask] = target_dqn.forward(non_final_next_states.float()).max(1)[0].detach()
+    next_state_values[non_final_mask] = target_dqn(non_final_next_states).max(1)[0].detach()
     # Compute the expected Q values
     q_value_targets = (next_state_values * dqn.gamma) + reward_batch
-
     # Compute loss.
     loss = F.mse_loss(q_values.squeeze(), q_value_targets)
 
