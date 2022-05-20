@@ -85,7 +85,7 @@ if __name__ == '__main__':
                 best_mean_return = mean_return
 
                 print('Best performance so far! Saving model.')
-                # torch.save(dqn, f'models/{args.env}_best.pt')
+                torch.save(dqn, f'models/{args.env}_best.pt')
 
     # Close environment after training is completed.
     env.close()
