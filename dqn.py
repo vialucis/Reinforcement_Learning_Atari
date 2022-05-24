@@ -87,7 +87,6 @@ class DQN(nn.Module):
                 action.append(action_index)
             else:
                 action.append(self.forward(state).max(0)[1].item())
-
         return torch.tensor(action)
 
 
@@ -123,7 +122,7 @@ def optimize(dqn, target_dqn, memory, optimizer):
     # TODO: Compute the Q-value targets. Only do this for non-terminal transitions!
 
     next_state_values = torch.zeros(dqn.batch_size, device=device)
-    next_state_values[non_final_mask] = target_dqn(non_final_next_states).max(1)[0].detach()
+    next_state_values[non_final_mask] = target_dqn(non_final_next_states).detach().max(1)[0]
     # Compute the expected Q values
     q_value_targets = (next_state_values * dqn.gamma) + reward_batch
     # Compute loss.

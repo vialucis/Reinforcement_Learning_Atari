@@ -34,7 +34,7 @@ if __name__ == '__main__':
     target_dqn = DQN(env_config=env_config).to(device)
     target_dqn.load_state_dict(dqn.state_dict())
     target_dqn.eval()
-
+    print(env_config["train_frequency"])
     # Create replay memory.
     memory = ReplayMemory(env_config['memory_size'])
 
@@ -67,11 +67,11 @@ if __name__ == '__main__':
             memory.push(obs_old, action, obs, reward)
 
             # TODO: Run DQN.optimize() every env_config["train_frequency"] steps.
-            if steps % env_config["train_frequency"] == 0:
+            if episode % env_config["train_frequency"] == 0:
                 optimize(dqn, target_dqn, memory, optimizer)
 
             # TODO: Update the target network every env_config["target_update_frequency"] steps.
-            if steps % env_config["target_update_frequency"] == 0:
+            if episode % env_config["target_update_frequency"] == 0:
                 target_dqn.load_state_dict(dqn.state_dict())
 
         # Evaluate the current agent.
