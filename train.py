@@ -9,6 +9,8 @@ from utils import preprocess
 from evaluate import evaluate_policy
 from dqn import DQN, ReplayMemory, optimize
 
+import matplotlib.pyplot as plt
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 parser = argparse.ArgumentParser()
@@ -44,6 +46,8 @@ if __name__ == '__main__':
     # Keep track of best evaluation mean return achieved so far.
     best_mean_return = -float("Inf")
 
+    mean_return_history = []
+
     for episode in range(env_config['n_episodes']):
         done = False
 
@@ -77,6 +81,16 @@ if __name__ == '__main__':
         # Evaluate the current agent.
         if episode % args.evaluate_freq == 0:
             mean_return = evaluate_policy(dqn, env, env_config, args, n_episodes=args.evaluation_episodes)
+            mean_return_history.append(min(mean_return, 500))
+            torch.save(mean_return_history, f'models/Tuf_{env_config["target_update_frequency"]}/{args.env}_tuf_{env_config["target_update_frequency"]}_return_history.pt')
+
+            if episode % (args.evaluate_freq*40) == 0:
+                plt.plot(range(0, len(mean_return_history) * args.evaluate_freq, args.evaluate_freq), mean_return_history)
+                plt.axhline(y=200, color='r', linestyle='-')
+                plt.xlabel("Episode")
+                plt.ylabel("Mean return")
+                plt.title("Mean return over episodes")
+                plt.savefig(f'models/Tuf_{env_config["target_update_frequency"]}/{args.env}_tuf_{env_config["target_update_frequency"]}_episode_{episode}.png')
 
             print(f'Episode {episode}/{env_config["n_episodes"]}: {mean_return}')
 
@@ -85,7 +99,15 @@ if __name__ == '__main__':
                 best_mean_return = mean_return
 
                 print('Best performance so far! Saving model.')
-                torch.save(dqn, f'models/{args.env}_best.pt')
+                torch.save(dqn, f'models/Tuf_{env_config["target_update_frequency"]}/{args.env}_tuf_{env_config["target_update_frequency"]}.pt')
+
+    plt.plot(range(0, len(mean_return_history) * args.evaluate_freq, args.evaluate_freq), mean_return_history)
+    plt.axhline(y=200, color='r', linestyle='-')
+    plt.xlabel("Episode")
+    plt.ylabel("Mean return")
+    plt.title("Mean return over episodes")
+    plt.savefig(f'models/Tuf_{env_config["target_update_frequency"]}/{args.env}_tuf_{env_config["target_update_frequency"]}.png')
+    plt.show()
 
     # Close environment after training is completed.
     env.close()
